@@ -249,3 +249,32 @@ spec:
 ![alt text](imagens/05_ARGO_04.jpg)
 
 ### Com a política de sincronização automática (`Automatic Sync`), qualquer alteração nos manifestos do Kubernetes que for enviada para a branch `main` será detectada e aplicada automaticamente ao cluster, garantindo que o estado da aplicação em execução seja sempre o mesmo que está declarado no Git.
+
+## Etapa 5: Validação e Teste E2E (End-to-End)
+
+### A aplicação implantada no cluster Kubernetes foi validada com sucesso.
+
+![alt text](imagens/06_final_01.jpg)
+
+1.  **Acesso à Aplicação**: Utilizando `kubectl port-forward`, a aplicação foi exposta na porta local `8081` e pôde ser acessada através do navegador, respondendo como esperado.
+```Bash
+kubectl port-forward svc/hello-app-service 8081:8080
+```
+
+![alt text](imagens/06_final_02.jpg)
+
+
+2.  **Teste do Ciclo Completo**: Uma alteração final no código-fonte da aplicação (`app/main.py`) foi enviada ao repositório. Isso disparou todo o fluxo automatizado:
+
+![alt text](imagens/06_final_04.jpg)
+
+ * O GitHub Actions construiu e publicou a nova imagem.
+* O manifesto de `Deployment` foi atualizado no Git pelo próprio workflow.
+* O ArgoCD detectou a alteração e sincronizou o cluster, atualizando os `Pods` para a nova versão da aplicação.
+* A alteração foi refletida com sucesso ao acessar novamente a aplicação no navegador.
+
+![alt text](imagens/06_final_05.jpg)
+
+![alt text](imagens/06_final_03.jpg)
+
+## Isso conclui a implementação de uma pipeline CI/CD completa com uma abordagem GitOps. (:
