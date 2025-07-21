@@ -42,3 +42,40 @@
     ```
 
     ![Kubectl](imagens/01_kubectl_01.jpg)
+
+
+## Etapa 1: Estrutura do Projeto (Monorepo)
+
+Este projeto utiliza uma abordagem de monorepo, onde todos os artefatos (código da aplicação e manifestos de deploy) residem em um único repositório Git. A estrutura é a seguinte:
+
+*  Pasta **/app** : Contém todo o código-fonte da aplicação FastAPI, o `Dockerfile` para a containerização e as dependências Python.
+
+```py
+# main.py
+
+from fastapi import FastAPI 
+
+app = FastAPI() 
+
+@app.get("/") 
+async def root(): 
+    return {"message": "Hello World"} 
+```
+
+```Dockerfile
+# Dockerfile
+
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 80
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+```
+* Pasta **/manifests** : Conterá os manifestos do Kubernetes (`deployment.yaml`, `service.yaml`) que definem como a aplicação deve ser executada no cluster. Esta pasta é a "fonte da verdade" para o ArgoCD.
