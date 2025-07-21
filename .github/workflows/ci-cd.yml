@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'app/**'
+permissions:
+  contents: write
 
 jobs:
   build-push-and-update:
