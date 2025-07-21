@@ -4,4 +4,4 @@ app = FastAPI()
 
 @app.get("/") 
 async def root(): 
-    return {"message": "CI/CD com GitHub Actions e ArgoCD! PARA TESTE FINAL"} 
+    return {"message": "Projeto finalizado com sucesso! deu tudo certo (: "} 
