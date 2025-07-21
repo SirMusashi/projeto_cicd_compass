@@ -177,7 +177,7 @@ spec:
     spec:
       containers:
       - name: hello-app
-        image: brunomusashiduarte/projeto_cicd_compass:c4b2bbd
+        image: brunomusashiduarte/projeto_cicd_compass:latest
         ports:
         - containerPort: 80
 ```
