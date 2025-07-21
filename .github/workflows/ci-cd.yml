@@ -43,10 +43,11 @@ jobs:
         run: |
           sed -i 's|image:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}|' manifests/deployment.yaml
 
-      - name: Commit and push manifest changes
+      - name: Commit e push mudanças no manifest
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add manifests/deployment.yaml
-          git commit -m "ci: update image tag to ${{ steps.generate_tag.outputs.tag }}"
-          git push
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add manifests/deployment.yaml
+            git commit -m "ci: update image tag to ${{ steps.generate_tag.outputs.tag }}"
+            git pull --rebase
+            git push
