@@ -1,0 +1,49 @@
+name: CI/CD - Build e Push imagem de Docker e Update do Manifest
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+
+jobs:
+  build-push-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Gerar image tag
+        id: generate_tag
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build e push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:buildcache,mode=max
+
+      - name: Update Kubernetes manifest
+        run: |
+          sed -i 's|image:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}|' manifests/deployment.yaml
+
+      - name: Commit e push mudanças no manifest 
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifests/deployment.yaml
+          git commit -m "ci: update image tag to ${{ steps.generate_tag.outputs.tag }}"
+          git push
