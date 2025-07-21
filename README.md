@@ -161,59 +161,25 @@ Nesta etapa, os manifestos do Kubernetes foram criados na pasta `/manifests` par
 * **`deployment.yaml`** : Define o `Deployment` da aplicação. Ele gerencia a criação dos `Pods` e garante que um número específico de réplicas da aplicação esteja sempre em execução. Sua especificação de imagem é agora atualizada dinamicamente pela nossa pipeline de CI. 
 
 ```YAML
-name: CI/CD - Build and Push Docker Image & Update Manifest
-
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'app/**'
-
-permissions:
-  contents: write
-
-jobs:
-  build-push-and-update:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Generate image tag
-        id: generate_tag
-        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./app
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}
-
-      - name: Update Kubernetes manifest
-        run: |
-          sed -i 's|image:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}|' manifests/deployment.yaml
-
-      - name: Commit and push manifest changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add manifests/deployment.yaml
-          git commit -m "ci: update image tag to ${{ steps.generate_tag.outputs.tag }}"
-          git pull --rebase
-          git push
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-app-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      labels:
+        app: hello-app
+    spec:
+      containers:
+      - name: hello-app
+        image: brunomusashiduarte/projeto_cicd_compass:c4b2bbd
+        ports:
+        - containerPort: 80
 ```
 
 * **`service.yaml`** : Define um `Service` que expõe os `Pods` da aplicação a uma rede interna no cluster, permitindo a comunicação entre eles.
