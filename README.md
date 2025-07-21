@@ -85,7 +85,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
 Foi configurado um workflow de Integração Contínua (`CI`) em `.github/workflows/ci-cd.yml`. Este processo é acionado automaticamente a cada `push` de alterações na pasta `/app` da branch `main`.
 
 ```YAML
-name: CI/CD - Build e Push imagem de Docker e Update do Manifest
+name: CI/CD - Build and Push Docker Image & Update Manifest
 
 on:
   push:
@@ -94,45 +94,49 @@ on:
     paths:
       - 'app/**'
 
+permissions:
+  contents: write
+
 jobs:
   build-push-and-update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login no Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Gerar image tag
+      - name: Generate image tag
         id: generate_tag
         run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
 
-      - name: Build e push
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: ./app
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:buildcache,mode=max
 
       - name: Update Kubernetes manifest
         run: |
           sed -i 's|image:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}|' manifests/deployment.yaml
 
-      - name: Commit e push mudanças no manifest 
+      - name: Commit and push manifest changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add manifests/deployment.yaml
           git commit -m "ci: update image tag to ${{ steps.generate_tag.outputs.tag }}"
+          git pull --rebase
           git push
 ```
 
@@ -149,3 +153,99 @@ Para que o workflow se autentique no Docker Hub, os seguintes `secrets` foram co
 ![github01](imagens/02_github_01.jpg) 
 
 ![github02](imagens/03_github_02.jpg)
+
+## Etapa 3: Manifestos do Kubernetes e Integração com a Pipeline
+
+Nesta etapa, os manifestos do Kubernetes foram criados na pasta `/manifests` para definir como a aplicação será implantada no cluster. 
+
+* **`deployment.yaml`** : Define o `Deployment` da aplicação. Ele gerencia a criação dos `Pods` e garante que um número específico de réplicas da aplicação esteja sempre em execução. Sua especificação de imagem é agora atualizada dinamicamente pela nossa pipeline de CI. 
+
+```YAML
+name: CI/CD - Build and Push Docker Image & Update Manifest
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-push-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Generate image tag
+        id: generate_tag
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}
+
+      - name: Update Kubernetes manifest
+        run: |
+          sed -i 's|image:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.generate_tag.outputs.tag }}|' manifests/deployment.yaml
+
+      - name: Commit and push manifest changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifests/deployment.yaml
+          git commit -m "ci: update image tag to ${{ steps.generate_tag.outputs.tag }}"
+          git pull --rebase
+          git push
+```
+
+* **`service.yaml`** : Define um `Service` que expõe os `Pods` da aplicação a uma rede interna no cluster, permitindo a comunicação entre eles.
+
+```YAML
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-app-service
+spec:
+  selector:
+    app: hello-app
+  ports:
+    - protocol: TCP
+      port: 8080 
+      targetPort: 80 
+```
+
+### Com a criação desses arquivos, o ciclo de Integração Contínua (CI) está completo. Cada `push` na pasta `/app` agora dispara uma pipeline que constrói uma nova imagem, a publica no Docker Hub e atualiza automaticamente o arquivo `deployment.yaml` com a nova tag da imagem
+
+![alt text](imagens/04_DH_01.png)
+
+## Etapa 4: Entrega Contínua com ArgoCD
+
+### A aplicação foi configurada no ArgoCD para automatizar a entrega contínua (Continuous Delivery). O ArgoCD foi conectado ao repositório Git e instruído a monitorar o caminho `/manifests` para sincronizar os deploys.
+
+![alt text](imagens/05_ARGO_01.jpg)
+
+![alt text](imagens/05_ARGO_02.jpg)
+
+![alt text](imagens/05_ARGO_03.jpg)
+
+![alt text](imagens/05_ARGO_04.jpg)
+
+### Com a política de sincronização automática (`Automatic Sync`), qualquer alteração nos manifestos do Kubernetes que for enviada para a branch `main` será detectada e aplicada automaticamente ao cluster, garantindo que o estado da aplicação em execução seja sempre o mesmo que está declarado no Git.
