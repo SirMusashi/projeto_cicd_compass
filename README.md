@@ -34,11 +34,11 @@
 * **ArgoCD** : A ferramenta de GitOps que sincroniza o estado do cluster com os manifestos declarados no repositório, automatizando a entrega contínua.
 
     ```Bash
-        # 1. Cria um "namespace" (uma área isolada) para o ArgoCD
+    # 1. Cria um "namespace" (uma área isolada) para o ArgoCD
         kubectl create namespace argocd
 
-        # 2. Instala o ArgoCD nesse namespace
-        kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    # 2. Instala o ArgoCD nesse namespace
+      kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
     ```
 
     ![Kubectl](imagens/01_kubectl_01.jpg)
@@ -77,6 +77,13 @@ COPY . .
 EXPOSE 80
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+```
+
+```Bash
+# requirements.txt
+
+fastapi
+uvicorn
 ```
 * Pasta **/manifests** : Conterá os manifestos do Kubernetes (`deployment.yaml`, `service.yaml`) que definem como a aplicação deve ser executada no cluster. Esta pasta é a "fonte da verdade" para o ArgoCD.
 
